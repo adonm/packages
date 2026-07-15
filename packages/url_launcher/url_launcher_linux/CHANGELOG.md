@@ -1,5 +1,6 @@
-## NEXT
+## 3.2.3
 
+* Adds GTK 4 support while preserving GTK 3 compatibility.
 * Updates minimum supported SDK version to Flutter 3.38/Dart 3.10.
 
 ## 3.2.2
