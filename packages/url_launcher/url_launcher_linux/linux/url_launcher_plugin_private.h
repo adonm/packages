@@ -10,3 +10,7 @@
 // Called to check if a URL can be launched.
 FulUrlLauncherApiCanLaunchUrlResponse* handle_can_launch_url(
     const gchar* url, gpointer user_data);
+
+// Launches a URL with the given parent window, or without a parent if null.
+FulUrlLauncherApiLaunchUrlResponse* launch_url(const gchar* url,
+                                               GtkWindow* window);

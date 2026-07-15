@@ -49,19 +49,24 @@ FulUrlLauncherApiCanLaunchUrlResponse* handle_can_launch_url(
   return ful_url_launcher_api_can_launch_url_response_new(is_launchable);
 }
 
-// Called when a URL should launch.
-static FulUrlLauncherApiLaunchUrlResponse* handle_launch_url(
-    const gchar* url, gpointer user_data) {
+FulUrlLauncherApiLaunchUrlResponse* launch_url(const gchar* url,
+                                               GtkWindow* window) {
   g_autoptr(GError) error = nullptr;
 #if defined(FLUTTER_LINUX_GTK4)
-  (void)user_data;
-  gboolean launched = g_app_info_launch_default_for_uri(url, nullptr, &error);
+  g_autoptr(GdkAppLaunchContext) context = nullptr;
+  if (window != nullptr) {
+    GdkDisplay* display = gtk_widget_get_display(GTK_WIDGET(window));
+    if (display != nullptr) {
+      context = gdk_display_get_app_launch_context(display);
+      gdk_app_launch_context_set_timestamp(context, GDK_CURRENT_TIME);
+    }
+  }
+  gboolean launched = g_app_info_launch_default_for_uri(
+      url, context == nullptr ? nullptr : G_APP_LAUNCH_CONTEXT(context),
+      &error);
 #else
-  FlUrlLauncherPlugin* self = FL_URL_LAUNCHER_PLUGIN(user_data);
-  FlView* view = fl_plugin_registrar_get_view(self->registrar);
   gboolean launched;
-  if (view != nullptr) {
-    GtkWindow* window = GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+  if (window != nullptr) {
     launched = gtk_show_uri_on_window(window, url, GDK_CURRENT_TIME, &error);
   } else {
     launched = g_app_info_launch_default_for_uri(url, nullptr, &error);
@@ -72,6 +77,25 @@ static FulUrlLauncherApiLaunchUrlResponse* handle_launch_url(
   }
 
   return ful_url_launcher_api_launch_url_response_new(nullptr);
+}
+
+// Called when a URL should launch.
+static FulUrlLauncherApiLaunchUrlResponse* handle_launch_url(
+    const gchar* url, gpointer user_data) {
+  FlUrlLauncherPlugin* self = FL_URL_LAUNCHER_PLUGIN(user_data);
+  FlView* view = fl_plugin_registrar_get_view(self->registrar);
+  GtkWindow* window = nullptr;
+  if (view != nullptr) {
+#if defined(FLUTTER_LINUX_GTK4)
+    GtkRoot* root = gtk_widget_get_root(GTK_WIDGET(view));
+    if (root != nullptr && GTK_IS_WINDOW(root)) {
+      window = GTK_WINDOW(root);
+    }
+#else
+    window = GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+#endif
+  }
+  return launch_url(url, window);
 }
 
 static void fl_url_launcher_plugin_dispose(GObject* object) {

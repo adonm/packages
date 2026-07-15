@@ -21,6 +21,12 @@ struct _FulUrlLauncherApiCanLaunchUrlResponse {
   FlValue* value;
 };
 
+struct _FulUrlLauncherApiLaunchUrlResponse {
+  GObject parent_instance;
+
+  FlValue* value;
+};
+
 namespace url_launcher_plugin {
 namespace test {
 
@@ -80,6 +86,36 @@ TEST(UrlLauncherPlugin, CanLaunchFailureInvalidUrl) {
   EXPECT_TRUE(
       fl_value_equal(fl_value_get_list_value(response->value, 0), expected));
 }
+
+TEST(UrlLauncherPlugin, LaunchWithoutWindowReturnsError) {
+  g_autoptr(FulUrlLauncherApiLaunchUrlResponse) response =
+      launch_url("", nullptr);
+  ASSERT_NE(response, nullptr);
+  ASSERT_EQ(fl_value_get_type(response->value), FL_VALUE_TYPE_LIST);
+  ASSERT_EQ(fl_value_get_length(response->value), 1);
+  FlValue* error = fl_value_get_list_value(response->value, 0);
+  ASSERT_EQ(fl_value_get_type(error), FL_VALUE_TYPE_STRING);
+  EXPECT_STRNE(fl_value_get_string(error), "");
+}
+
+#if defined(FLUTTER_LINUX_GTK4)
+TEST(UrlLauncherPlugin, LaunchWithWindowReturnsError) {
+  if (!gtk_init_check()) {
+    GTEST_SKIP() << "GTK display is unavailable";
+  }
+
+  GtkWindow* window = GTK_WINDOW(gtk_window_new());
+  g_autoptr(FulUrlLauncherApiLaunchUrlResponse) response =
+      launch_url("", window);
+  ASSERT_NE(response, nullptr);
+  ASSERT_EQ(fl_value_get_type(response->value), FL_VALUE_TYPE_LIST);
+  ASSERT_EQ(fl_value_get_length(response->value), 1);
+  FlValue* error = fl_value_get_list_value(response->value, 0);
+  ASSERT_EQ(fl_value_get_type(error), FL_VALUE_TYPE_STRING);
+  EXPECT_STRNE(fl_value_get_string(error), "");
+  gtk_window_destroy(window);
+}
+#endif  // defined(FLUTTER_LINUX_GTK4)
 
 }  // namespace test
 }  // namespace url_launcher_plugin
